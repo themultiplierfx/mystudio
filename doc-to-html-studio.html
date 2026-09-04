@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Folio — Word & PDF to HTML Studio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2430;
+    --ink-soft:#3A4657;
+    --paper:#FAF8F3;
+    --paper-edge:#EFEAE0;
+    --line:#E1DCCF;
+    --teal:#3E7C6B;
+    --teal-deep:#2C5A4D;
+    --clay:#B5622C;
+    --grey:#8A8F98;
+    --white:#FFFFFF;
+    --shadow: 0 1px 3px rgba(27,36,48,0.08), 0 8px 24px rgba(27,36,48,0.10);
+    --serif: 'Source Serif 4', 'Iowan Old Style','Palatino Linotype', Georgia, 'Times New Roman', serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:var(--ink);
+    color:var(--ink);
+    display:flex;
+    height:100vh;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;
+  }
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width:280px;
+    min-width:280px;
+    background:var(--ink);
+    color:#D8DEE6;
+    display:flex;
+    flex-direction:column;
+    padding:22px 18px;
+    overflow-y:auto;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    margin-bottom:26px;
+  }
+  .brand .mark{
+    width:12px;height:12px;border-radius:50%;
+    background:var(--clay);
+    display:inline-block;
+  }
+  .brand h1{
+    font-family:var(--serif);
+    font-size:21px;
+    font-weight:600;
+    margin:0;
+    color:var(--white);
+    letter-spacing:0.2px;
+  }
+  .brand span.tag{
+    font-size:11px;
+    color:var(--grey);
+  }
+  .side-section{
+    margin-bottom:22px;
+    padding-bottom:20px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .side-section:last-child{border-bottom:none;}
+  .side-label{
+    font-size:12px;
+    color:#9DA6B3;
+    margin-bottom:10px;
+    font-weight:600;
+  }
+  .drop-zone{
+    border:1.5px dashed rgba(255,255,255,0.25);
+    border-radius:8px;
+    padding:18px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    font-size:13px;
+    color:#C7CEDA;
+    line-height:1.5;
+  }
+  .drop-zone:hover, .drop-zone.drag{
+    border-color:var(--teal);
+    background:rgba(62,124,107,0.12);
+  }
+  .drop-zone strong{ color:var(--white); display:block; margin-bottom:4px; font-size:13.5px;}
+  #fileInput{display:none;}
+  .file-status{
+    font-size:12px;
+    margin-top:10px;
+    color:#8ED9BE;
+    display:none;
+  }
+
+  .btn{
+    width:100%;
+    padding:9px 12px;
+    border-radius:7px;
+    border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.04);
+    color:#E7EBF0;
+    font-size:13px;
+    cursor:pointer;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    margin-bottom:8px;
+    transition:background .12s ease, border-color .12s ease;
+    font-family:var(--sans);
+  }
+  .btn:hover{ background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.28); }
+  .btn.primary{
+    background:var(--teal);
+    border-color:var(--teal);
+    color:var(--white);
+    font-weight:600;
+    justify-content:center;
+  }
+  .btn.primary:hover{ background:var(--teal-deep); }
+  .btn svg{flex-shrink:0;}
+
+  select.style-select, input.side-input{
+    width:100%;
+    padding:8px 10px;
+    border-radius:6px;
+    border:1px solid rgba(255,255,255,0.16);
+    background:rgba(255,255,255,0.05);
+    color:#E7EBF0;
+    font-size:13px;
+    margin-bottom:8px;
+    font-family:var(--sans);
+  }
+  .swatches{ display:flex; gap:8px; margin-bottom:4px; }
+  .swatch{
+    width:26px;height:26px;border-radius:50%;
+    cursor:pointer;
+    border:2px solid transparent;
+    transition:transform .1s ease, border-color .1s ease;
+  }
+  .swatch:hover{ transform:scale(1.1); }
+  .swatch.active{ border-color:#fff; }
+
+  /* ---------- Main / Toolbar ---------- */
+  #main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    background:#242E3B;
+    min-width:0;
+  }
+  #toolbar{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:9px 16px;
+    background:var(--white);
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+    box-shadow:0 1px 0 rgba(0,0,0,0.03);
+  }
+  #toolbar button{
+    border:none;
+    background:transparent;
+    padding:7px 9px;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:14px;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-width:32px;
+    font-family:var(--sans);
+  }
+  #toolbar button:hover{ background:var(--paper-edge); color:var(--ink); }
+  #toolbar button.active{ background:#E4EFEC; color:var(--teal-deep); }
+  #toolbar .sep{
+    width:1px; height:22px; background:var(--line); margin:0 6px;
+  }
+  #toolbar select{
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:6px 8px;
+    font-size:13px;
+    background:var(--white);
+    color:var(--ink-soft);
+    font-family:var(--sans);
+  }
+  #toolbar input[type=color]{
+    width:28px;height:28px;border:none;background:none;cursor:pointer;padding:0;
+  }
+  .zoom-controls{
+    margin-left:auto;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    color:var(--grey);
+  }
+
+  /* ---------- Canvas ---------- */
+  #canvasWrap{
+    flex:1;
+    overflow-y:auto;
+    padding:36px 0 80px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #page{
+    width:820px;
+    max-width:92vw;
+    background-color:var(--paper);
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.1  0 0 0 0 0.08  0 0 0 0 0.05  0 0 0 0.02 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    box-shadow:var(--shadow);
+    border-radius:2px;
+    transform-origin:top center;
+  }
+
+  /* Cover page */
+  #coverPage{
+    min-height:1060px;
+    padding:90px 80px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    background:linear-gradient(180deg, var(--paper) 0%, var(--paper) 100%);
+    border-bottom:6px solid var(--teal);
+    position:relative;
+  }
+  #coverPage.style-editorial{ border-bottom-color:var(--clay); }
+  #coverPage.style-mono{ border-bottom-color:var(--ink); }
+
+  .cover-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .cover-eyebrow{
+    font-family:var(--sans);
+    font-size:12.5px;
+    color:var(--teal-deep);
+    letter-spacing:0.4px;
+    outline:none;
+    max-width:60%;
+  }
+  #coverPage.style-editorial .cover-eyebrow{ color:var(--clay); }
+  .cover-logo-dot{ width:10px;height:10px;border-radius:50%; background:var(--teal); }
+  #coverPage.style-editorial .cover-logo-dot{ background:var(--clay); }
+
+  .cover-mid{ margin-top:60px; }
+  .cover-title{
+    font-family:var(--serif);
+    font-size:52px;
+    line-height:1.08;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    color:var(--ink);
+    outline:none;
+    margin:0 0 18px 0;
+  }
+  .cover-subtitle{
+    font-family:var(--sans);
+    font-size:18px;
+    color:var(--ink-soft);
+    outline:none;
+    max-width:75%;
+    line-height:1.5;
+    font-weight:400;
+  }
+  .cover-bottom{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-top:1px solid var(--line);
+    padding-top:18px;
+  }
+  .cover-meta{ font-family:var(--sans); font-size:13px; color:var(--grey); outline:none;}
+  .cover-meta b{ color:var(--ink-soft); font-weight:600; }
+  .cover-date{ font-family:var(--sans); font-size:13px; color:var(--grey); outline:none; }
+
+  /* Content page */
+  #content{
+    padding:64px 80px 100px;
+    font-family:var(--serif);
+    font-size:16.5px;
+    line-height:1.75;
+    color:var(--ink);
+    outline:none;
+    min-height:400px;
+  }
+  #content h1{ font-size:30px; font-weight:600; margin:1.4em 0 .5em; line-height:1.25; }
+  #content h2{ font-size:23px; font-weight:600; margin:1.3em 0 .5em; color:var(--ink); }
+  #content h3{ font-size:18.5px; font-weight:600; margin:1.2em 0 .4em; color:var(--ink-soft); }
+  #content p{ margin:0 0 1em 0; }
+  #content ul, #content ol{ margin:0 0 1em 1.4em; padding:0; }
+  #content li{ margin-bottom:0.3em; }
+  #content a{ color:var(--teal-deep); }
+  #content img{ max-width:100%; border-radius:3px; margin:1em 0; }
+  #content blockquote{
+    border-left:3px solid var(--teal);
+    margin:1.2em 0;
+    padding:2px 0 2px 18px;
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+  #content table{ border-collapse:collapse; width:100%; margin:1.2em 0; font-family:var(--sans); font-size:14.5px;}
+  #content table td, #content table th{ border:1px solid var(--line); padding:8px 10px; }
+  #content table th{ background:var(--paper-edge); text-align:left; }
+  #content hr{ border:none; border-top:1px solid var(--line); margin:2em 0; }
+
+  /* Equations */
+  .equation{
+    cursor:pointer;
+    border-radius:4px;
+    transition:background .1s ease;
+  }
+  .equation:hover{ background:rgba(62,124,107,0.10); outline:1px dashed rgba(62,124,107,0.4); }
+  .equation.block{
+    display:block;
+    text-align:center;
+    margin:1.3em 0;
+    padding:10px 6px;
+  }
+  .equation.inline{ display:inline-block; padding:0 2px; }
+  .eq-label{
+    font-family:var(--sans);
+    font-size:11px;
+    color:var(--grey);
+    text-align:right;
+    margin-top:-8px;
+    margin-bottom:1.2em;
+  }
+
+  /* Equation modal */
+  #eqModalOverlay{
+    position:fixed; inset:0; background:rgba(27,36,48,0.55);
+    display:none; align-items:center; justify-content:center; z-index:60;
+  }
+  #eqModalOverlay.show{ display:flex; }
+  #eqModal{
+    background:var(--white);
+    width:560px; max-width:92vw;
+    border-radius:10px;
+    padding:22px 24px;
+    box-shadow:var(--shadow);
+    font-family:var(--sans);
+  }
+  #eqModal h3{ margin:0 0 4px 0; font-family:var(--serif); font-size:19px; color:var(--ink); }
+  #eqModal .eq-sub{ font-size:12.5px; color:var(--grey); margin-bottom:14px; }
+  #eqModal textarea{
+    width:100%; min-height:80px; resize:vertical;
+    border:1px solid var(--line); border-radius:7px; padding:10px 12px;
+    font-family:'SFMono-Regular', Consolas, monospace; font-size:14px;
+    outline:none; box-sizing:border-box;
+  }
+  #eqModal textarea:focus{ border-color:var(--teal); }
+  #eqPreview{
+    margin-top:12px; min-height:50px; border:1px solid var(--line); border-radius:7px;
+    padding:14px; background:var(--paper); overflow-x:auto; display:flex; align-items:center; justify-content:center;
+  }
+  #eqPreview .katex-error{ color:#B5622C; font-family:var(--sans); font-size:13px; }
+  .eq-snippets{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .eq-snippet-btn{
+    border:1px solid var(--line); background:var(--paper-edge); border-radius:6px;
+    padding:5px 9px; font-size:13px; cursor:pointer; font-family:var(--sans); color:var(--ink-soft);
+  }
+  .eq-snippet-btn:hover{ background:#E4EFEC; border-color:var(--teal); }
+  .eq-mode-row{ display:flex; align-items:center; gap:16px; margin-top:14px; font-size:13px; color:var(--ink-soft); }
+  .eq-mode-row label{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+  #eqModal .eq-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+  #eqModal .eq-actions button{
+    padding:9px 16px; border-radius:7px; border:1px solid var(--line);
+    background:var(--white); cursor:pointer; font-size:13.5px; font-family:var(--sans);
+  }
+  #eqModal .eq-actions button.eq-insert{ background:var(--teal); color:#fff; border-color:var(--teal); font-weight:600; }
+  #eqModal .eq-actions button.eq-insert:hover{ background:var(--teal-deep); }
+  #eqModal .eq-actions button.eq-delete{ color:#B5622C; border-color:#EAD3C0; }
+
+  /* PDF equation review */
+  #eqOriginalBox{
+    display:none;
+    background:#FBF3E9; border:1px solid #EAD3C0; border-radius:7px;
+    padding:10px 12px; margin-bottom:12px; font-size:13px; color:#7A4A22;
+  }
+  #eqOriginalBox b{ display:block; font-size:11px; text-transform:none; color:#B5622C; margin-bottom:4px; }
+  #eqOriginalBox span{ font-family:'SFMono-Regular', Consolas, monospace; }
+  p.eq-candidate, li.eq-candidate{
+    background:rgba(181,98,44,0.06);
+    border-left:2.5px solid #D8A467;
+    padding:6px 10px 6px 12px;
+    border-radius:0 4px 4px 0;
+  }
+  .eq-fix-badge{
+    display:inline-block;
+    background:#B5622C; color:#fff; border:none; border-radius:5px;
+    font-family:var(--sans); font-size:11.5px; font-weight:600;
+    padding:3px 8px; margin-right:9px; cursor:pointer; vertical-align:middle;
+  }
+  .eq-fix-badge:hover{ background:#93481B; }
+  #eqToast{
+    position:fixed; top:20px; right:20px; z-index:70;
+    background:var(--ink); color:#E7EBF0; padding:14px 18px; border-radius:9px;
+    font-family:var(--sans); font-size:13.5px; box-shadow:var(--shadow);
+    max-width:300px; display:none; align-items:flex-start; gap:10px;
+  }
+  #eqToast.show{ display:flex; }
+  #eqToast .eq-toast-close{ background:none;border:none;color:#9DA6B3;cursor:pointer;font-size:15px;line-height:1;padding:0;margin-left:auto; }
+
+  /* Pagination / print preview */
+  #printPreviewOverlay{
+    position:fixed; inset:0; background:#171C24; z-index:65;
+    display:none; flex-direction:column;
+  }
+  #printPreviewOverlay.show{ display:flex; }
+  .pv-header{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 22px; background:#1F2530; border-bottom:1px solid rgba(255,255,255,0.08);
+    font-family:var(--sans); color:#E7EBF0; flex-shrink:0;
+  }
+  .pv-header h3{ margin:0; font-size:15px; font-weight:600; }
+  .pv-header .pv-count{ font-size:12.5px; color:#9DA6B3; }
+  .pv-header .pv-actions{ margin-left:auto; display:flex; gap:10px; }
+  .pv-header button{
+    border:1px solid rgba(255,255,255,0.16); background:rgba(255,255,255,0.06);
+    color:#E7EBF0; border-radius:7px; padding:7px 14px; font-size:13px; cursor:pointer; font-family:var(--sans);
+  }
+  .pv-header button.pv-print{ background:var(--teal); border-color:var(--teal); font-weight:600; }
+  .pv-header button.pv-print:hover{ background:var(--teal-deep); }
+  .pv-header button.pv-close:hover{ background:rgba(255,255,255,0.14); }
+  #pvBody{
+    flex:1; overflow-y:auto; padding:28px 0 60px;
+    display:flex; flex-direction:column; align-items:center; gap:24px;
+  }
+  .pv-sheet-wrap{ flex-shrink:0; }
+  .pv-sheet{
+    background:var(--paper); box-shadow:0 4px 24px rgba(0,0,0,0.45);
+    position:relative; overflow:hidden; font-family:var(--serif); color:var(--ink);
+  }
+  .pv-sheet .pv-inner{ width:100%; height:100%; overflow:hidden; box-sizing:border-box; }
+  .pv-page-label{
+    text-align:center; font-family:var(--sans); font-size:12px; color:#8A93A3; margin-top:-14px;
+  }
+  .pv-cover-sheet .pv-inner{ padding:0; }
+
+  #content:empty:before{
+    content:"Upload a Word or PDF file on the left, or start typing your document here…";
+    color:#B7B0A0;
+    font-style:italic;
+  }
+
+  /* Loading overlay */
+  #loadingOverlay{
+    position:fixed; inset:0; background:rgba(27,36,48,0.55);
+    display:none; align-items:center; justify-content:center; z-index:50;
+  }
+  #loadingOverlay.show{ display:flex; }
+  .spinner-box{
+    background:var(--white); padding:26px 32px; border-radius:10px;
+    display:flex; align-items:center; gap:14px; font-family:var(--sans); color:var(--ink-soft); font-size:14px;
+  }
+  .spinner{
+    width:20px; height:20px; border-radius:50%;
+    border:2.5px solid var(--paper-edge); border-top-color:var(--teal);
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+
+  ::selection{ background:rgba(62,124,107,0.25); }
+
+  @media (max-width:820px){
+    #sidebar{ width:220px; min-width:220px; padding:16px 12px; }
+    #page{ width:100%; }
+    #content, #coverPage{ padding:40px 24px; }
+    .cover-title{ font-size:36px; }
+  }
+
+  /* ---------- Phones ---------- */
+  #sidebarOverlay{
+    display:none;
+    position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:39;
+  }
+  #menuToggle{ display:none; }
+  @media (max-width:640px){
+    body{ overflow:hidden; }
+    #menuToggle{
+      display:flex; border:none; background:transparent; padding:7px 9px;
+      border-radius:6px; cursor:pointer; align-items:center; justify-content:center;
+      color:var(--ink-soft); min-width:32px; font-size:16px;
+    }
+    #sidebar{
+      position:fixed; top:0; left:0; bottom:0; width:270px; min-width:270px;
+      z-index:40; transform:translateX(-100%); transition:transform .2s ease;
+      box-shadow:8px 0 24px rgba(0,0,0,0.25);
+    }
+    #sidebar.open{ transform:translateX(0); }
+    #sidebar.open ~ #sidebarOverlay, #sidebarOverlay.show{ display:block; }
+    #toolbar{
+      flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      padding:8px 10px; scrollbar-width:none;
+    }
+    #toolbar::-webkit-scrollbar{ display:none; }
+    #toolbar select{ flex-shrink:0; }
+    .zoom-controls{ display:none; }
+    #canvasWrap{ padding:16px 0 60px; }
+    #content, #coverPage{ padding:28px 18px; }
+    .cover-title{ font-size:28px; }
+    .cover-subtitle{ font-size:15px; max-width:100%; }
+    .cover-mid{ margin-top:34px; }
+    .cover-bottom{ flex-direction:column; align-items:flex-start; gap:6px; }
+    #eqModal{ padding:18px 16px; }
+    #eqToast{ left:12px; right:12px; max-width:none; top:12px; }
+  }
+  @media print{
+    #sidebar, #toolbar, #loadingOverlay, #eqToast, #eqModalOverlay, .eq-fix-badge, #menuToggle, #sidebarOverlay, #printPreviewOverlay{ display:none !important; }
+    @page{ size:auto; margin:14mm; }
+    html, body{ height:auto; overflow:visible; background:#fff; }
+    #main{ overflow:visible; background:#fff; }
+    #canvasWrap{ padding:0; overflow:visible; display:block; }
+    #page{ box-shadow:none; width:100%; max-width:none; transform:none !important; }
+    #coverPage{
+      page-break-after:always;
+      break-after:page;
+      min-height:0;
+    }
+    #content h1, #content h2, #content h3{ break-after:avoid; page-break-after:avoid; }
+    #content img, #content table, .equation, blockquote{ break-inside:avoid; page-break-inside:avoid; }
+    #content p, #content li{ orphans:3; widows:3; }
+    .eq-candidate{ background:none; border-left:none; padding:0; }
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+  }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <span class="mark"></span>
+    <h1>Folio</h1>
+  </div>
+  <div style="margin-top:-18px;margin-bottom:22px;"><span class="tag">Word &amp; PDF → HTML Studio</span></div>
+
+  <div class="side-section">
+    <div class="side-label">1 · Import a document</div>
+    <div class="drop-zone" id="dropZone">
+      <strong>Drop a .docx or .pdf here</strong>
+      or click to browse
+    </div>
+    <input type="file" id="fileInput" accept=".docx,.pdf">
+    <div class="file-status" id="fileStatus"></div>
+  </div>
+
+  <div class="side-section">
+    <div class="side-label">2 · Cover page style</div>
+    <select class="style-select" id="coverStyleSelect">
+      <option value="style-classic">Classic — teal rule</option>
+      <option value="style-editorial">Editorial — clay rule</option>
+      <option value="style-mono">Mono — ink rule</option>
+    </select>
+    <div class="side-label" style="margin-top:12px;">Accent color</div>
+    <div class="swatches" id="accentSwatches">
+      <div class="swatch active" style="background:#3E7C6B" data-color="#3E7C6B"></div>
+      <div class="swatch" style="background:#B5622C" data-color="#B5622C"></div>
+      <div class="swatch" style="background:#1B2430" data-color="#1B2430"></div>
+      <div class="swatch" style="background:#5B5FEF" data-color="#5B5FEF"></div>
+      <div class="swatch" style="background:#9A2B4C" data-color="#9A2B4C"></div>
+    </div>
+  </div>
+
+  <div class="side-section">
+    <div class="side-label">3 · Cover page image (optional)</div>
+    <button class="btn" id="coverImageBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      Add cover image
+    </button>
+  </div>
+
+  <div class="side-section" style="flex:1;">
+    <div class="side-label">4 · Export</div>
+    <button class="btn primary" id="exportBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download as HTML
+    </button>
+    <button class="btn" id="exportDocxBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="18" x2="13" y2="18"/></svg>
+      Download as Word (.docx)
+    </button>
+    <button class="btn" id="printBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Save as PDF
+    </button>
+    <button class="btn" id="previewPagesBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="12" height="16" rx="1"/><rect x="8" y="6" width="12" height="16" rx="1" fill="#242E3B"/></svg>
+      Preview pagination
+    </button>
+  </div>
+
+  <div style="font-size:11px;color:#6E7683;line-height:1.5;">
+    Everything runs locally in your browser — files are not uploaded anywhere.
+  </div>
+</aside>
+<div id="sidebarOverlay"></div>
+
+<div id="main">
+  <div id="toolbar">
+    <button id="menuToggle" title="Menu">☰</button>
+    <select id="blockFormat" title="Paragraph style">
+      <option value="p">Paragraph</option>
+      <option value="h1">Heading 1</option>
+      <option value="h2">Heading 2</option>
+      <option value="h3">Heading 3</option>
+      <option value="blockquote">Quote</option>
+    </select>
+    <select id="fontFamily" title="Font">
+      <option value="'Iowan Old Style', Georgia, serif">Serif</option>
+      <option value="-apple-system, Inter, sans-serif">Sans</option>
+      <option value="'Courier New', monospace">Mono</option>
+    </select>
+    <div class="sep"></div>
+    <button data-cmd="bold" title="Bold"><b>B</b></button>
+    <button data-cmd="italic" title="Italic"><i>I</i></button>
+    <button data-cmd="underline" title="Underline"><u>U</u></button>
+    <button data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+    <input type="color" id="textColor" title="Text color" value="#1B2430">
+    <div class="sep"></div>
+    <button data-cmd="justifyLeft" title="Align left">⟸</button>
+    <button data-cmd="justifyCenter" title="Align center">≡</button>
+    <button data-cmd="justifyRight" title="Align right">⟹</button>
+    <div class="sep"></div>
+    <button data-cmd="insertUnorderedList" title="Bulleted list">• ≡</button>
+    <button data-cmd="insertOrderedList" title="Numbered list">1. ≡</button>
+    <button data-cmd="indent" title="Indent">→|</button>
+    <button data-cmd="outdent" title="Outdent">|←</button>
+    <div class="sep"></div>
+    <button id="linkBtn" title="Insert link">🔗</button>
+    <button id="imageBtn" title="Insert image">🖼</button>
+    <button id="eqBtn" title="Insert equation">∑</button>
+    <button data-cmd="insertHorizontalRule" title="Divider">―</button>
+    <div class="sep"></div>
+    <button data-cmd="undo" title="Undo">↺</button>
+    <button data-cmd="redo" title="Redo">↻</button>
+    <div class="zoom-controls">
+      <button id="zoomOut" title="Zoom out">−</button>
+      <span id="zoomLabel">100%</span>
+      <button id="zoomIn" title="Zoom in">+</button>
+    </div>
+  </div>
+
+  <div id="canvasWrap">
+    <div id="page">
+      <div id="coverPage" class="style-classic">
+        <div class="cover-top">
+          <div class="cover-eyebrow" contenteditable="true">PREPARED DOCUMENT</div>
+          <div class="cover-logo-dot"></div>
+        </div>
+        <div class="cover-mid">
+          <h1 class="cover-title" contenteditable="true">Untitled Document</h1>
+          <div class="cover-subtitle" contenteditable="true">A short description or subtitle goes here — replace with your own summary.</div>
+        </div>
+        <div class="cover-bottom">
+          <div class="cover-meta" contenteditable="true"><b>Author</b> — Your Name</div>
+          <div class="cover-date" contenteditable="true" id="coverDate"></div>
+        </div>
+      </div>
+      <div id="content" contenteditable="true"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="coverImageInput" accept="image/*" style="display:none;">
+<div id="loadingOverlay"><div class="spinner-box"><div class="spinner"></div><span id="loadingText">Converting document…</span></div></div>
+<div id="eqToast">
+  <span id="eqToastMsg"></span>
+  <button class="eq-toast-close" id="eqToastClose">✕</button>
+</div>
+
+<div id="printPreviewOverlay">
+  <div class="pv-header">
+    <h3>Print / PDF preview</h3>
+    <span class="pv-count" id="pvCount"></span>
+    <div class="pv-actions">
+      <button class="pv-print" id="pvPrintNow">Print now</button>
+      <button class="pv-close" id="pvClose">Close</button>
+    </div>
+  </div>
+  <div id="pvBody"></div>
+</div>
+
+<div id="eqModalOverlay">
+  <div id="eqModal">
+    <h3>Insert equation</h3>
+    <div class="eq-sub">Write standard LaTeX. KaTeX renders it exactly, so notation stays scientifically correct.</div>
+    <div id="eqOriginalBox">
+      <b>Extracted from the PDF as plain text (often loses fraction bars, roots &amp; sub/superscripts)</b>
+      <span id="eqOriginalText"></span>
+    </div>
+    <textarea id="eqInput" placeholder="e.g.  E = mc^2   or   \frac{-b \pm \sqrt{b^2-4ac}}{2a}"></textarea>
+    <div class="eq-snippets">
+      <button class="eq-snippet-btn" data-snip="\frac{a}{b}">a⁄b</button>
+      <button class="eq-snippet-btn" data-snip="\sqrt{x}">√x</button>
+      <button class="eq-snippet-btn" data-snip="x^{2}">x²</button>
+      <button class="eq-snippet-btn" data-snip="x_{i}">xᵢ</button>
+      <button class="eq-snippet-btn" data-snip="\sum_{i=1}^{n}">Σ</button>
+      <button class="eq-snippet-btn" data-snip="\int_{a}^{b}">∫</button>
+      <button class="eq-snippet-btn" data-snip="\lim_{x \to \infty}">lim</button>
+      <button class="eq-snippet-btn" data-snip="\partial">∂</button>
+      <button class="eq-snippet-btn" data-snip="\nabla">∇</button>
+      <button class="eq-snippet-btn" data-snip="\alpha \beta \gamma \Delta">αβγΔ</button>
+      <button class="eq-snippet-btn" data-snip="\times">×</button>
+      <button class="eq-snippet-btn" data-snip="\cdot">·</button>
+      <button class="eq-snippet-btn" data-snip="\pm">±</button>
+      <button class="eq-snippet-btn" data-snip="\rightarrow">→</button>
+      <button class="eq-snippet-btn" data-snip="\leq \geq \neq">≤≥≠</button>
+    </div>
+    <div id="eqPreview"></div>
+    <div class="eq-mode-row">
+      <label><input type="radio" name="eqMode" value="inline" checked> Inline (within text)</label>
+      <label><input type="radio" name="eqMode" value="block"> Block (its own centered line)</label>
+    </div>
+    <div class="eq-actions">
+      <button class="eq-delete" id="eqDeleteBtn" style="display:none;">Remove</button>
+      <button id="eqCancelBtn">Cancel</button>
+      <button class="eq-insert" id="eqInsertBtn">Insert equation</button>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const $ = sel => document.querySelector(sel);
+const dropZone = $('#dropZone'), fileInput = $('#fileInput'), fileStatus = $('#fileStatus');
+const content = $('#content'), coverPage = $('#coverPage'), coverTitle = document.querySelector('.cover-title');
+const loadingOverlay = $('#loadingOverlay'), loadingText = $('#loadingText');
+
+// default date
+document.getElementById('coverDate').textContent = new Date().toLocaleDateString(undefined, {year:'numeric', month:'long', day:'numeric'});
+
+function showLoading(msg){ loadingText.textContent = msg; loadingOverlay.classList.add('show'); }
+function hideLoading(){ loadingOverlay.classList.remove('show'); }
+
+// ---- Mobile sidebar drawer ----
+const sidebarEl = $('#sidebar'), sidebarOverlay = $('#sidebarOverlay'), menuToggle = $('#menuToggle');
+function openSidebar(){ sidebarEl.classList.add('open'); sidebarOverlay.classList.add('show'); }
+function closeSidebar(){ sidebarEl.classList.remove('open'); sidebarOverlay.classList.remove('show'); }
+menuToggle.addEventListener('click', () => {
+  sidebarEl.classList.contains('open') ? closeSidebar() : openSidebar();
+});
+sidebarOverlay.addEventListener('click', closeSidebar);
+// Auto-close the drawer after picking an action on mobile
+['exportBtn','exportDocxBtn','printBtn','coverImageBtn','previewPagesBtn'].forEach(id => {
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('click', () => { if(window.innerWidth <= 640) closeSidebar(); });
+});
+
+// ---- Drag & drop / file picking ----
+dropZone.addEventListener('click', () => fileInput.click());
+['dragover','dragenter'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('drag'); }));
+dropZone.addEventListener('drop', e => { if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if(e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  const name = file.name.toLowerCase();
+  if(name.endsWith('.docx')){
+    convertDocx(file);
+  } else if(name.endsWith('.pdf')){
+    convertPdf(file);
+  } else {
+    alert('Please upload a .docx or .pdf file.');
+    return;
+  }
+  fileStatus.style.display = 'block';
+  fileStatus.textContent = '✓ ' + file.name;
+  // Use filename (without extension) as a starting title suggestion
+  const base = file.name.replace(/\.(docx|pdf)$/i,'');
+  coverTitle.textContent = base;
+}
+
+function convertDocx(file){
+  showLoading('Reading Word document…');
+  const reader = new FileReader();
+  reader.onload = function(e){
+    mammoth.convertToHtml({arrayBuffer: e.target.result})
+      .then(result => {
+        content.innerHTML = result.value || '<p></p>';
+        flagEquationCandidates();
+        hideLoading();
+      })
+      .catch(err => { hideLoading(); alert('Could not read this .docx file: ' + err.message); });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function convertPdf(file){
+  showLoading('Reading PDF…');
+  try{
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    let html = '';
+    for(let i=1; i<=pdf.numPages; i++){
+      loadingText.textContent = `Reading PDF… page ${i} of ${pdf.numPages}`;
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      // Group text items into paragraph-ish lines based on y position
+      let lines = [];
+      let currentLine = null;
+      let lastY = null;
+      textContent.items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if(lastY === null || Math.abs(y - lastY) > 2){
+          currentLine = { y, text: item.str };
+          lines.push(currentLine);
+        } else {
+          currentLine.text += item.str;
+        }
+        lastY = y;
+      });
+      // Merge lines into paragraphs: blank-ish gaps become new paragraphs
+      let paras = [];
+      let buffer = '';
+      lines.forEach((line, idx) => {
+        const t = line.text.trim();
+        if(!t){ return; }
+        if(buffer && lines[idx-1] && Math.abs(line.y - lines[idx-1].y) > 22){
+          paras.push(buffer);
+          buffer = t;
+        } else {
+          buffer = buffer ? buffer + ' ' + t : t;
+        }
+      });
+      if(buffer) paras.push(buffer);
+      paras.forEach(p => { html += `<p>${escapeHtml(p)}</p>`; });
+      if(i < pdf.numPages) html += '';
+    }
+    content.innerHTML = html || '<p></p>';
+    flagEquationCandidates();
+  }catch(err){
+    alert('Could not read this PDF file: ' + err.message);
+  }
+  hideLoading();
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+// Removes any un-actioned "Fix equation" review badges before export, so unreviewed
+// PDF-extraction guesses never end up baked into a downloaded file.
+function cleanForExport(node){
+  const clone = node.cloneNode(true);
+  clone.querySelectorAll('.eq-fix-badge').forEach(b => b.remove());
+  clone.querySelectorAll('.eq-candidate').forEach(el => el.classList.remove('eq-candidate'));
+  return clone;
+}
+
+// ---- Toolbar formatting ----
+document.querySelectorAll('#toolbar button[data-cmd]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    content.focus();
+    document.execCommand(btn.dataset.cmd, false, null);
+  });
+});
+
+$('#blockFormat').addEventListener('change', e => {
+  content.focus();
+  document.execCommand('formatBlock', false, e.target.value);
+});
+$('#fontFamily').addEventListener('change', e => {
+  content.focus();
+  document.execCommand('fontName', false, e.target.value);
+});
+$('#textColor').addEventListener('input', e => {
+  content.focus();
+  document.execCommand('foreColor', false, e.target.value);
+});
+$('#linkBtn').addEventListener('click', () => {
+  const url = prompt('Link URL:', 'https://');
+  if(url){ content.focus(); document.execCommand('createLink', false, url); }
+});
+$('#imageBtn').addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.onchange = () => {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      content.focus();
+      document.execCommand('insertImage', false, e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+});
+
+// ---- Equations (KaTeX) ----
+const eqOverlay = $('#eqModalOverlay'), eqInput = $('#eqInput'), eqPreview = $('#eqPreview');
+const eqInsertBtn = $('#eqInsertBtn'), eqCancelBtn = $('#eqCancelBtn'), eqDeleteBtn = $('#eqDeleteBtn');
+const eqOriginalBox = $('#eqOriginalBox'), eqOriginalText = $('#eqOriginalText');
+let savedRange = null;      // caret position in content, for new equations
+let editingEquation = null; // existing .equation element being edited, or null when inserting new
+let fixTargetEl = null;     // paragraph/li being replaced when "fixing" a PDF-extracted equation
+
+// ---------- Detecting equation-like text pulled out of a PDF/Word file ----------
+const MATH_SYMBOL_RE = /[=+\-*/^_(){}\[\]√∑∫≈≠≤≥±×÷∞∂∇πθφλμσΔαβγδεζηικξρτυχψω]/g;
+function scoreMathLikelihood(text){
+  const t = text.trim();
+  if(t.length < 2) return 0;
+  const symbolMatches = (t.match(MATH_SYMBOL_RE) || []).length;
+  const letterDigitAdjacent = (t.match(/[a-zA-Z]\d|\d[a-zA-Z]/g) || []).length;
+  const words = t.split(/\s+/).length;
+  let score = (symbolMatches / t.length) * 3 + letterDigitAdjacent * 0.12;
+  if(words <= 8 && symbolMatches >= 2) score += 0.3;
+  if(/=/.test(t)) score += 0.15;
+  if(/^[A-Za-z\s]+[.:,]?$/.test(t)) score = 0; // plain prose sentence, no symbols at all
+  return score;
+}
+// Light, conservative cleanup only — never guesses at fractions/roots/exponents,
+// since silently mis-structuring a formula is worse than leaving it for the person to fix.
+function cleanExtractedMath(text){
+  return text
+    .replace(/[–—−]/g, '-')
+    .replace(/\s*\*\s*/g, ' \\cdot ')
+    .replace(/\bsqrt\s*\(/gi, '\\sqrt(')
+    .replace(/\balpha\b/gi, '\\alpha').replace(/\bbeta\b/gi, '\\beta')
+    .replace(/\bgamma\b/gi, '\\gamma').replace(/\bdelta\b/gi, '\\delta')
+    .replace(/\btheta\b/gi, '\\theta').replace(/\bpi\b/gi, '\\pi')
+    .replace(/\bsigma\b/gi, '\\sigma').replace(/\binfinity\b/gi, '\\infty')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+function flagEquationCandidates(){
+  const blocks = content.querySelectorAll('p, li');
+  let count = 0;
+  blocks.forEach(el => {
+    if(el.closest('.equation') || el.querySelector('.eq-fix-badge')) return;
+    const text = el.textContent.trim();
+    if(text.length < 2 || text.length > 220) return;
+    if(scoreMathLikelihood(text) > 0.28){
+      const badge = document.createElement('button');
+      badge.className = 'eq-fix-badge';
+      badge.type = 'button';
+      badge.setAttribute('contenteditable', 'false');
+      badge.title = 'Looks like it might be an equation extracted as plain text — click to convert it into correctly typeset math';
+      badge.textContent = '⚡ Fix equation';
+      badge.dataset.original = text;
+      el.classList.add('eq-candidate');
+      el.insertBefore(badge, el.firstChild);
+      count++;
+    }
+  });
+  if(count > 0) showEqToast(count);
+}
+function showEqToast(count){
+  const toast = $('#eqToast');
+  $('#eqToastMsg').textContent = `Found ${count} passage${count>1?'s':''} that may be equations pulled in as plain text. Click "⚡ Fix equation" next to any of them to convert it into correct math notation.`;
+  toast.classList.add('show');
+}
+$('#eqToastClose').addEventListener('click', () => $('#eqToast').classList.remove('show'));
+
+function saveSelectionIfInContent(){
+  const sel = window.getSelection();
+  if(sel.rangeCount > 0){
+    const range = sel.getRangeAt(0);
+    if(content.contains(range.startContainer)){
+      savedRange = range.cloneRange();
+    }
+  }
+}
+content.addEventListener('mouseup', saveSelectionIfInContent);
+content.addEventListener('keyup', saveSelectionIfInContent);
+
+function renderEqPreview(){
+  const latex = eqInput.value.trim();
+  const isBlock = document.querySelector('input[name="eqMode"]:checked').value === 'block';
+  if(!latex){ eqPreview.innerHTML = '<span style="color:#B7B0A0;font-family:sans-serif;font-size:13px;">Preview will appear here</span>'; return; }
+  try{
+    eqPreview.innerHTML = katex.renderToString(latex, {throwOnError:true, displayMode:isBlock});
+  }catch(err){
+    eqPreview.innerHTML = `<span class="katex-error">${escapeHtml(err.message)}</span>`;
+  }
+}
+eqInput.addEventListener('input', renderEqPreview);
+document.querySelectorAll('input[name="eqMode"]').forEach(r => r.addEventListener('change', renderEqPreview));
+document.querySelectorAll('.eq-snippet-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const snip = btn.dataset.snip;
+    const start = eqInput.selectionStart, end = eqInput.selectionEnd;
+    eqInput.value = eqInput.value.slice(0,start) + snip + eqInput.value.slice(end);
+    eqInput.focus();
+    eqInput.selectionStart = eqInput.selectionEnd = start + snip.length;
+    renderEqPreview();
+  });
+});
+
+function openEqModal(existingEl){
+  editingEquation = existingEl || null;
+  fixTargetEl = null;
+  eqOriginalBox.style.display = 'none';
+  if(existingEl){
+    eqInput.value = existingEl.dataset.latex || '';
+    document.querySelector(`input[name="eqMode"][value="${existingEl.classList.contains('block') ? 'block' : 'inline'}"]`).checked = true;
+    eqDeleteBtn.style.display = 'inline-block';
+  } else {
+    eqInput.value = '';
+    document.querySelector('input[name="eqMode"][value="inline"]').checked = true;
+    eqDeleteBtn.style.display = 'none';
+  }
+  renderEqPreview();
+  eqOverlay.classList.add('show');
+  setTimeout(() => eqInput.focus(), 30);
+}
+function openFixModal(candidateEl, badge){
+  editingEquation = null;
+  fixTargetEl = candidateEl;
+  const original = badge.dataset.original || candidateEl.textContent.trim();
+  eqOriginalText.textContent = original;
+  eqOriginalBox.style.display = 'block';
+  eqInput.value = cleanExtractedMath(original);
+  document.querySelector('input[name="eqMode"][value="block"]').checked = true;
+  eqDeleteBtn.style.display = 'none';
+  renderEqPreview();
+  eqOverlay.classList.add('show');
+  setTimeout(() => { eqInput.focus(); eqInput.select(); }, 30);
+}
+function closeEqModal(){ eqOverlay.classList.remove('show'); editingEquation = null; fixTargetEl = null; }
+
+$('#eqBtn').addEventListener('click', () => openEqModal(null));
+eqCancelBtn.addEventListener('click', closeEqModal);
+eqOverlay.addEventListener('click', e => { if(e.target === eqOverlay) closeEqModal(); });
+
+eqInsertBtn.addEventListener('click', () => {
+  const latex = eqInput.value.trim();
+  if(!latex){ closeEqModal(); return; }
+  const isBlock = document.querySelector('input[name="eqMode"]:checked').value === 'block';
+  let rendered;
+  try{
+    rendered = katex.renderToString(latex, {throwOnError:true, displayMode:isBlock});
+  }catch(err){
+    alert('This LaTeX has a syntax error, so it can\'t be inserted:\n' + err.message);
+    return;
+  }
+  if(editingEquation){
+    editingEquation.innerHTML = rendered;
+    editingEquation.dataset.latex = latex;
+    editingEquation.className = 'equation ' + (isBlock ? 'block' : 'inline');
+  } else if(fixTargetEl){
+    const wrapper = document.createElement(isBlock ? 'div' : 'span');
+    wrapper.className = 'equation ' + (isBlock ? 'block' : 'inline');
+    wrapper.setAttribute('contenteditable', 'false');
+    wrapper.dataset.latex = latex;
+    wrapper.innerHTML = rendered;
+    fixTargetEl.replaceWith(wrapper);
+  } else {
+    const wrapper = document.createElement(isBlock ? 'div' : 'span');
+    wrapper.className = 'equation ' + (isBlock ? 'block' : 'inline');
+    wrapper.setAttribute('contenteditable', 'false');
+    wrapper.dataset.latex = latex;
+    wrapper.innerHTML = rendered;
+    content.focus();
+    const sel = window.getSelection();
+    if(savedRange && content.contains(savedRange.startContainer)){
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+    if(sel.rangeCount === 0){
+      content.appendChild(wrapper);
+    } else {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(wrapper);
+      range.setStartAfter(wrapper);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+  closeEqModal();
+});
+eqDeleteBtn.addEventListener('click', () => {
+  if(editingEquation){ editingEquation.remove(); }
+  closeEqModal();
+});
+
+// Click an existing equation to edit it, or a fix-badge to convert flagged text
+content.addEventListener('click', e => {
+  const badge = e.target.closest('.eq-fix-badge');
+  if(badge){
+    openFixModal(badge.closest('.eq-candidate'), badge);
+    return;
+  }
+  const eq = e.target.closest('.equation');
+  if(eq){ openEqModal(eq); }
+});
+
+
+// ---- Cover page style + accent color ----
+$('#coverStyleSelect').addEventListener('change', e => {
+  coverPage.className = e.target.value;
+});
+document.querySelectorAll('.swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    document.documentElement.style.setProperty('--teal', sw.dataset.color);
+    document.documentElement.style.setProperty('--teal-deep', shade(sw.dataset.color, -18));
+  });
+});
+function shade(hex, percent){
+  let f = parseInt(hex.slice(1),16), t = percent<0?0:255, p = Math.abs(percent)/100;
+  let R = f>>16, G = f>>8&0x00FF, B = f&0x0000FF;
+  return "#"+(0x1000000+(Math.round((t-R)*p)+R)*0x10000+(Math.round((t-G)*p)+G)*0x100+(Math.round((t-B)*p)+B)).toString(16).slice(1);
+}
+
+// ---- Cover image ----
+$('#coverImageBtn').addEventListener('click', () => $('#coverImageInput').click());
+$('#coverImageInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    let img = coverPage.querySelector('.cover-image');
+    if(!img){
+      img = document.createElement('img');
+      img.className = 'cover-image';
+      img.style.cssText = 'width:100%;max-height:260px;object-fit:cover;border-radius:4px;margin-top:22px;';
+      coverPage.querySelector('.cover-mid').appendChild(img);
+    }
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+// ---- Zoom ----
+let zoom = 100;
+const pageEl = $('#page');
+$('#zoomIn').addEventListener('click', () => { zoom = Math.min(150, zoom+10); applyZoom(); });
+$('#zoomOut').addEventListener('click', () => { zoom = Math.max(50, zoom-10); applyZoom(); });
+function applyZoom(){ pageEl.style.transform = `scale(${zoom/100})`; $('#zoomLabel').textContent = zoom+'%'; }
+
+// ---- Export ----
+$('#exportBtn').addEventListener('click', exportHtml);
+$('#exportDocxBtn').addEventListener('click', exportDocx);
+$('#printBtn').addEventListener('click', () => window.print());
+
+// ---- Pagination / print preview ----
+const pvOverlay = $('#printPreviewOverlay'), pvBody = $('#pvBody'), pvCount = $('#pvCount');
+const PAGE_W_IN = 8.5, PAGE_H_IN = 11, MARGIN_MM = 14;
+const PX_PER_IN = 96;
+const pageWpx = Math.round(PAGE_W_IN * PX_PER_IN);
+const pageHpx = Math.round(PAGE_H_IN * PX_PER_IN);
+const marginPx = Math.round((MARGIN_MM / 25.4) * PX_PER_IN);
+const contentAreaW = pageWpx - marginPx * 2;
+const contentAreaH = pageHpx - marginPx * 2;
+
+function paginateContent(){
+  const measureHost = document.createElement('div');
+  measureHost.style.cssText = `position:fixed;left:-99999px;top:0;width:${contentAreaW}px;font-family:${getComputedStyle(document.documentElement).getPropertyValue('--serif')};font-size:16.5px;line-height:1.75;color:#1B2430;`;
+  const cleaned = cleanForExport(content);
+  measureHost.innerHTML = cleaned.innerHTML;
+  document.body.appendChild(measureHost);
+
+  const pages = [];
+  let currentPage = [];
+  let currentHeight = 0;
+  Array.from(measureHost.children).forEach(el => {
+    const cs = getComputedStyle(el);
+    const h = el.getBoundingClientRect().height + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+    // Keep an element with the page it started on rather than mid-slicing it —
+    // an approximation of the same break-inside:avoid rules used for real printing.
+    if(currentHeight + h > contentAreaH && currentPage.length > 0){
+      pages.push(currentPage);
+      currentPage = [];
+      currentHeight = 0;
+    }
+    currentPage.push(el.outerHTML);
+    currentHeight += h;
+  });
+  if(currentPage.length) pages.push(currentPage);
+  if(pages.length === 0) pages.push(['<p></p>']);
+  document.body.removeChild(measureHost);
+  return pages;
+}
+
+function renderPaginationPreview(){
+  const pages = paginateContent();
+  const totalSheets = pages.length + 1; // +1 for the cover
+  pvCount.textContent = `${totalSheets} page${totalSheets > 1 ? 's' : ''} — Letter, ${MARGIN_MM}mm margins`;
+
+  const availableW = Math.min(window.innerWidth - 48, 900);
+  const scale = Math.min(1, availableW / pageWpx);
+
+  pvBody.innerHTML = '';
+
+  // Cover sheet — reuse the real, live-styled cover markup at true page size.
+  const coverWrap = document.createElement('div');
+  coverWrap.className = 'pv-sheet-wrap';
+  const coverSheet = document.createElement('div');
+  coverSheet.className = 'pv-sheet pv-cover-sheet';
+  coverSheet.style.cssText = `width:${pageWpx}px;height:${pageHpx}px;transform:scale(${scale});transform-origin:top center;`;
+  const coverClone = coverPage.cloneNode(true);
+  coverClone.style.cssText = `width:${pageWpx}px;height:${pageHpx}px;min-height:0;box-sizing:border-box;border-bottom:6px solid ${getComputedStyle(document.documentElement).getPropertyValue('--teal')};`;
+  coverClone.removeAttribute('id');
+  coverSheet.appendChild(coverClone);
+  coverWrap.appendChild(coverSheet);
+  const coverLabel = document.createElement('div');
+  coverLabel.className = 'pv-page-label';
+  coverLabel.style.marginTop = (pageHpx * scale - pageHpx + 6) + 'px';
+  coverLabel.textContent = 'Page 1 · Cover';
+  coverWrap.appendChild(coverLabel);
+  pvBody.appendChild(coverWrap);
+
+  pages.forEach((pageEls, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'pv-sheet-wrap';
+    const sheet = document.createElement('div');
+    sheet.className = 'pv-sheet';
+    sheet.style.cssText = `width:${pageWpx}px;height:${pageHpx}px;transform:scale(${scale});transform-origin:top center;`;
+    const inner = document.createElement('div');
+    inner.className = 'pv-inner';
+    inner.style.cssText = `padding:${marginPx}px;font-family:var(--serif);font-size:16.5px;line-height:1.75;color:var(--ink);`;
+    inner.innerHTML = pageEls.join('');
+    sheet.appendChild(inner);
+    wrap.appendChild(sheet);
+    const label = document.createElement('div');
+    label.className = 'pv-page-label';
+    label.style.marginTop = (pageHpx * scale - pageHpx + 6) + 'px';
+    label.textContent = `Page ${i + 2} of ${totalSheets}`;
+    wrap.appendChild(label);
+    pvBody.appendChild(wrap);
+  });
+}
+
+$('#previewPagesBtn').addEventListener('click', () => {
+  if(window.innerWidth <= 640) closeSidebar();
+  renderPaginationPreview();
+  pvOverlay.classList.add('show');
+});
+$('#pvClose').addEventListener('click', () => pvOverlay.classList.remove('show'));
+$('#pvPrintNow').addEventListener('click', () => { pvOverlay.classList.remove('show'); window.print(); });
+
+// Word can't apply KaTeX's CSS, so equations are rasterized to PNG images for the .docx export.
+async function rasterizeEquationsForDocx(container){
+  const eqs = container.querySelectorAll('.equation');
+  for(const eq of eqs){
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;padding:6px;display:inline-block;';
+    holder.innerHTML = eq.innerHTML;
+    document.body.appendChild(holder);
+    try{
+      const canvas = await html2canvas(holder, {backgroundColor:'#ffffff', scale:4});
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+      const heightPx = canvas.height / 4, widthPx = canvas.width / 4;
+      img.style.height = Math.round(heightPx) + 'px';
+      img.style.width = Math.round(widthPx) + 'px';
+      img.style.verticalAlign = 'middle';
+      if(eq.classList.contains('block')){
+        const p = document.createElement('p');
+        p.style.textAlign = 'center';
+        p.appendChild(img);
+        eq.replaceWith(p);
+      } else {
+        eq.replaceWith(img);
+      }
+    }catch(err){
+      // If rasterizing fails, fall back to leaving the LaTeX source as plain text.
+      const span = document.createElement('span');
+      span.textContent = eq.dataset.latex || '';
+      eq.replaceWith(span);
+    }
+    document.body.removeChild(holder);
+  }
+}
+
+async function exportDocx(){
+  const title = coverTitle.textContent.trim() || 'Document';
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--teal').trim() || '#3E7C6B';
+  const eyebrow = coverPage.querySelector('.cover-eyebrow') ? coverPage.querySelector('.cover-eyebrow').textContent.trim() : '';
+  const subtitle = coverPage.querySelector('.cover-subtitle') ? coverPage.querySelector('.cover-subtitle').innerHTML : '';
+  const meta = coverPage.querySelector('.cover-meta') ? coverPage.querySelector('.cover-meta').innerHTML : '';
+  const dateText = document.getElementById('coverDate') ? document.getElementById('coverDate').textContent.trim() : '';
+  const coverImg = coverPage.querySelector('.cover-image');
+  const coverImgHtml = coverImg ? `<p><img src="${coverImg.src}" style="width:100%;max-width:600px;"/></p>` : '';
+
+  showLoading('Preparing equations for Word…');
+
+  // Work on a detached copy of the content so the live editor is untouched.
+  const contentCopy = cleanForExport(content);
+  await rasterizeEquationsForDocx(contentCopy);
+  hideLoading();
+
+  // Word (via html-docx-js) renders plain block HTML far more reliably than flex/absolute layouts,
+  // so the cover is rebuilt here as simple centered/left blocks with inline styles.
+  const coverHtml = `
+    <div style="font-family:Georgia,serif;">
+      <p style="font-family:Arial,sans-serif;font-size:11pt;color:${accent};letter-spacing:1px;margin-bottom:36pt;">${eyebrow}</p>
+      <h1 style="font-family:Georgia,serif;font-size:34pt;font-weight:bold;margin:0 0 14pt 0;">${escapeHtml(title)}</h1>
+      <p style="font-family:Arial,sans-serif;font-size:13pt;color:#444;margin-bottom:28pt;">${subtitle}</p>
+      ${coverImgHtml}
+      <div style="border-top:1pt solid #ccc;margin-top:220pt;padding-top:10pt;font-family:Arial,sans-serif;font-size:10pt;color:#666;">
+        <p>${meta}</p>
+        <p>${escapeHtml(dateText)}</p>
+      </div>
+    </div>
+    <br clear="all" style="page-break-before:always;">
+  `;
+
+  const fullHtml = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>
+<body style="font-family:Georgia,serif;font-size:12pt;line-height:1.6;color:#1B2430;">
+${coverHtml}
+${contentCopy.innerHTML}
+</body>
+</html>`;
+
+  try{
+    const blob = htmlDocx.asBlob(fullHtml);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (title.replace(/[^a-z0-9\-_ ]/gi,'').trim() || 'document') + '.docx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(err){
+    alert('Could not generate the Word file: ' + err.message);
+  }
+}
+
+function exportHtml(){
+  const title = coverTitle.textContent.trim() || 'Document';
+  const styleBlock = document.querySelector('style').outerHTML;
+  const coverClass = coverPage.className;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--teal').trim();
+  const accentDeep = getComputedStyle(document.documentElement).getPropertyValue('--teal-deep').trim();
+  const finalHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${escapeHtml(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+${styleBlock}
+<style>
+  body{ background:var(--paper); height:auto; overflow:visible; display:block; }
+  #sidebar,#toolbar,#loadingOverlay{ display:none !important; }
+  #canvasWrap{ padding:0; }
+  #page{ box-shadow:none; width:100%; max-width:820px; margin:0 auto; }
+  :root{ --teal:${accent}; --teal-deep:${accentDeep}; }
+</style>
+</head>
+<body>
+<div id="canvasWrap"><div id="page">
+${coverPage.outerHTML.replace('id="coverPage"', `id="coverPage" class="${coverClass}"`)}
+<div id="content">${cleanForExport(content).innerHTML}</div>
+</div></div>
+</body>
+</html>`;
+  const blob = new Blob([finalHtml], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (title.replace(/[^a-z0-9\-_ ]/gi,'').trim() || 'document') + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
